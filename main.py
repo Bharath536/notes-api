@@ -1,28 +1,47 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 app = FastAPI()
 
-class Note(BaseModel):
-    id: int
+
+# Base Model
+class BaseNote(BaseModel):
     title: str
     content: str
 
+
+# Input Model
+class NoteCreate(BaseNote):
+    id: int
+
+
+# Output Model
+class NoteOut(BaseNote):
+    id: int
+
+
+# Fake Database
 fake_notes_db = []
+
 
 @app.get("/")
 def home():
     return {"message": "Notes API"}
 
-@app.post("/notes/")
-def add_note(note: Note):
-    fake_notes_db.append(note)
-    return {
-        "message": "Note added successfully",
-        "note": note
-    }
 
-@app.get("/notes/")
+# Create Note
+@app.post(
+    "/notes/",
+    response_model=NoteOut,
+    status_code=status.HTTP_201_CREATED
+)
+def add_note(note: NoteCreate):
+    fake_notes_db.append(note)
+    return note
+
+
+# Get Notes
+@app.get("/notes/", response_model=list[NoteOut])
 def get_notes(title: str = None):
     if title is None:
         return fake_notes_db
@@ -35,25 +54,24 @@ def get_notes(title: str = None):
 
     return result
 
-@app.put("/notes/{note_id}")
-def update_note(note_id: int, updated_note: Note):
+
+# Update Note
+@app.put("/notes/{note_id}", response_model=NoteOut)
+def update_note(note_id: int, updated_note: NoteCreate):
     for index, note in enumerate(fake_notes_db):
         if note.id == note_id:
             fake_notes_db[index] = updated_note
-            return {
-                "message": "Note updated successfully",
-                "note": updated_note
-            }
+            return updated_note
 
     raise HTTPException(status_code=404, detail="Note not found")
-@app.delete("/notes/{note_id}")
+
+
+# Delete Note
+@app.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_note(note_id: int):
     for index, note in enumerate(fake_notes_db):
         if note.id == note_id:
-            deleted_note = fake_notes_db.pop(index)
-            return {
-                "message": "Note deleted successfully",
-                "note": deleted_note
-            }
+            fake_notes_db.pop(index)
+            return
 
     raise HTTPException(status_code=404, detail="Note not found")
