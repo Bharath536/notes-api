@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, status, Request, UploadFile, File
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+import os
+import shutil
 
 app = FastAPI()
 
@@ -110,3 +112,21 @@ def delete_note(note_id: int):
             return
 
     raise note_not_found()
+
+
+# Upload File
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+
+    os.makedirs("uploads", exist_ok=True)
+
+    file_path = os.path.join("uploads", file.filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {
+        "message": "File uploaded successfully",
+        "filename": file.filename,
+        "content_type": file.content_type
+    }
