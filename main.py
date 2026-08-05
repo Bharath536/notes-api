@@ -16,11 +16,13 @@ class BaseNote(BaseModel):
 # Input Model
 class NoteCreate(BaseNote):
     id: int = Field(..., gt=0)
+    attached_file: str | None = None
 
 
 # Output Model
 class NoteOut(BaseNote):
     id: int
+    attached_file: str | None = None
 
 
 # Fake Database
@@ -53,7 +55,7 @@ async def negative_number_exception_handler(request: Request, exc: NegativeNumbe
 
 @app.get("/")
 def home():
-    return {"message": "Notes API"}
+    return {"message": "Enhanced Notes API"}
 
 
 # Create Note
@@ -71,7 +73,7 @@ def add_note(note: NoteCreate):
     return note
 
 
-# Get Notes
+# Get All Notes
 @app.get("/notes/", response_model=list[NoteOut])
 def get_notes(title: str = None, limit: int = 100):
 
@@ -88,6 +90,17 @@ def get_notes(title: str = None, limit: int = 100):
             result.append(note)
 
     return result
+
+
+# Get Single Note
+@app.get("/notes/{note_id}", response_model=NoteOut)
+def get_note(note_id: int):
+
+    for note in fake_notes_db:
+        if note.id == note_id:
+            return note
+
+    raise note_not_found()
 
 
 # Update Note
@@ -114,19 +127,25 @@ def delete_note(note_id: int):
     raise note_not_found()
 
 
-# Upload File
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+# Upload Attachment
+@app.post("/notes/{note_id}/attachment")
+async def upload_attachment(note_id: int, file: UploadFile = File(...)):
 
     os.makedirs("uploads", exist_ok=True)
 
-    file_path = os.path.join("uploads", file.filename)
+    for note in fake_notes_db:
+        if note.id == note_id:
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+            file_path = os.path.join("uploads", file.filename)
 
-    return {
-        "message": "File uploaded successfully",
-        "filename": file.filename,
-        "content_type": file.content_type
-    }
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            note.attached_file = file.filename
+
+            return {
+                "message": "File uploaded successfully",
+                "filename": file.filename
+            }
+
+    raise note_not_found()
